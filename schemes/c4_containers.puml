@@ -1,0 +1,80 @@
+@startuml
+title Warmhouse Container Diagram
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(user, "Пользователь", "Пользователь системы Warmhouse")
+Person(admin, "Администратор", "Администратор системы WarmHouse")
+
+' Внешние устройства умного дома
+System_Ext(sensor1, "Датчик 1", "API стороннего поставщика")
+System_Ext(sensor2, "Датчик 2", "API стороннего поставщика")
+
+Container_Boundary(WarmHouseSystem, "WarmHouse System") {
+    Container(WebUI, "Web UI", "Интерфейс для управления системой")
+    Container(API, "API", "API взаимодействия компонентов системы")
+    Container(IOT_Gate, "IoT Gateway", "Шлюз для подключения устройств")
+
+    ' Управление учетными данными пользователей и устройств
+    Container_Boundary(AccountMGM, "Управление Учетными Записями") {
+        Container(Account_MGM, "Система Управления Учетными Записями", "Управление пользователями и устройствами")
+        ContainerDb(AccountDb, "База Данных Учетных Записей", "PostgreSQL", "Хранение данных пользователей и устройств")
+    }
+
+    ' Управление пользовательскими сценариями
+    Container_Boundary(ScenarioMGM, "Управление Сценариями") {
+        Container(ScenarioEngine, "Система Сценариев", "Создание и управление сценариями")
+        ContainerDb(ScenarioDb, "База Данных Сценариев", "PostgreSQL", "Хранение сценариев умного дома")
+    }
+
+    ' Управление устройствами 
+    Container_Boundary(DeviceMGM, "Управление Устройствами") {
+        Container(Device_MGM, "Система Управления Устройствами", "Конфигурация и управление устройствами")
+        Container(Telemetry, "Система Телеметрии", "Мониторинг состояния устройств")
+        ContainerDb(DeviceDb, "База Данных Устройств", "PostgreSQL", "Хранение данных об устройствах")
+    }
+    Container(MessageBroker, "Брокер Сообщений", "RabbitMQ",  "Обработка сообщений между компонентами")
+}
+
+' Взаимодействие пользователя с Web UI
+Rel(user, WebUI, "Регистрация и управление устройствами")
+Rel(user, WebUI, "Настройка сценариев")
+Rel(user, WebUI, "Мониторинг телеметрии")
+
+' Взаимодействие администратора с Web UI
+Rel(admin, WebUI, "Администрирование системы")
+Rel(admin, WebUI, "Мониторинг системы")
+
+' Запросы через API
+Rel(WebUI, API, "Запросы к API")
+
+' Маршрутизация запросов через API:
+' 1. Управление учетными записями
+Rel(API, Account_MGM, "Запросы на управление учетными записями")
+Rel(Account_MGM, AccountDb, "CRUD операции")
+
+' 2. Управление сценариями умного дома
+Rel(API, ScenarioEngine, "Запросы на управление сценариями")
+Rel(ScenarioEngine, ScenarioDb, "CRUD операции")
+Rel(ScenarioEngine, Device_MGM, "Команды управления устройствами")
+
+' 3. Управление устройствами
+Rel(API, Device_MGM, "Команды управления устройствами")
+Rel(Device_MGM, DeviceDb, "Команды управления устройствами")
+Rel(Device_MGM, MessageBroker, "Команды управления устройствами")
+Rel(API, Telemetry, "Запросы на мониторинг телеметрии")
+Rel(MessageBroker, Telemetry, "Данные телеметрии")
+Rel(Telemetry, DeviceDb, "Сохранение данных телеметрии")
+
+' Передача команд и получение данных от устройств
+Rel(MessageBroker, IOT_Gate, "Команды управления устройствами")
+Rel(IOT_Gate, MessageBroker, "Данные и телеметрия")
+
+' Управление внешними датчиками
+Rel(IOT_Gate, sensor1, "Команды управления")
+Rel(IOT_Gate, sensor2, "Команды управления")
+
+' Получение данных от устройств
+Rel(sensor1, IOT_Gate, "Данные телеметрии")
+Rel(sensor2, IOT_Gate, "Данные телеметрии")
+@enduml
